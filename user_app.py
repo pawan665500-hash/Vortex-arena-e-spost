@@ -48,7 +48,10 @@ def close_db(exc):
 def init_db():
     with sqlite3.connect(DB) as c:
         c.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,phone TEXT DEFAULT '',username TEXT DEFAULT '',player_uid TEXT DEFAULT '',team_name TEXT DEFAULT '',game TEXT DEFAULT 'Free Fire',game_uid TEXT DEFAULT '',avatar TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS tournaments(id INTEGER PRIMARY KEY AUTOINCREMENT,game TEXT NOT NULL,title TEXT NOT NULL,entry_fee INTEGER NOT NULL,prize_pool INTEGER NOT NULL,slots INTEGER NOT NULL,players INTEGER NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,room_id TEXT DEFAULT '',room_password TEXT DEFAULT '',status TEXT DEFAULT 'Upcoming',youtube_url TEXT DEFAULT '')''')
+        c.execute('''CREATE TABLE IF NOT EXISTS tournaments(id INTEGER PRIMARY KEY AUTOINCREMENT,game TEXT NOT NULL,title TEXT NOT NULL,entry_fee INTEGER NOT NULL,prize_pool INTEGER NOT NULL,slots INTEGER NOT NULL,players INTEGER NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,room_id TEXT DEFAULT '',room_password TEXT DEFAULT '',status TEXT DEFAULT 'Upcoming',youtube_url TEXT DEFAULT '',image_url TEXT DEFAULT '')''')
+        tournament_cols = [r[1] for r in c.execute('PRAGMA table_info(tournaments)')]
+        if 'image_url' not in tournament_cols:
+            c.execute("ALTER TABLE tournaments ADD COLUMN image_url TEXT DEFAULT ''")
         c.execute('''CREATE TABLE IF NOT EXISTS registrations(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,tournament_id INTEGER NOT NULL,utr TEXT DEFAULT '',payment_status TEXT DEFAULT 'Pending review',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(user_id,tournament_id))''')
         c.execute('''CREATE TABLE IF NOT EXISTS tournament_results(id INTEGER PRIMARY KEY AUTOINCREMENT,tournament_id INTEGER NOT NULL,player_name TEXT NOT NULL,team_name TEXT DEFAULT '',kills INTEGER DEFAULT 0,score INTEGER DEFAULT 0,position INTEGER NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         n = c.execute('SELECT COUNT(*) FROM tournaments').fetchone()[0]
@@ -152,7 +155,7 @@ def tournaments():
     if game:sql+=' AND game=?';args.append(game)
     if status:sql+=' AND status=?';args.append(status)
     ts=db().execute(sql+' ORDER BY id',args).fetchall()
-    cards=''.join(f'''<div class="card tour"><img src="{next((x[3] for x in GAMES if x[0]==t['game']),GAMES[0][3])}" alt="{t['game']} game"><div><h3>{t['title']}</h3><div class="fee">₹ {t['prize_pool']:,} Prize Pool</div><div class="muted">◉ {t['players']}/{t['slots']} Players</div><div class="muted">Start: {t['start_time']}</div><div class="row between" style="margin-top:7px"><span class="muted">Entry ₹{t['entry_fee']}</span><a class="btn" href="/join/{t['id']}">Join</a></div></div></div>''' for t in ts)
+    cards=''.join(f'''<div class="card tour"><img src="{(t['image_url'] or next((x[3] for x in GAMES if x[0]==t['game']),GAMES[0][3]))}" alt="{t['game']} game"><div><h3>{t['title']}</h3><div class="fee">₹ {t['prize_pool']:,} Prize Pool</div><div class="muted">◉ {t['players']}/{t['slots']} Players</div><div class="muted">Start: {t['start_time']}</div><div class="row between" style="margin-top:7px"><span class="muted">Entry ₹{t['entry_fee']}</span><a class="btn" href="/join/{t['id']}">Join</a></div></div></div>''' for t in ts)
     if not cards:cards='<div class="card">इस गेम के लिए अभी tournament नहीं है। Admin के द्वारा इसी डेटाबेस में मैच जोड़ने के बाद यहाँ दिखेगा।</div>'
     body=f'''<h1 class="title">Tournaments</h1><div class="subtitle">Big Prizes • Real Competition</div><div class="row" style="flex-wrap:wrap;margin:14px 0"><a class="pill" href="/tournaments">All Games</a> <a class="pill" href="/my-matches">My Tournaments</a></div>{cards}'''
     return page(body,'tournaments',True)
@@ -165,12 +168,12 @@ def join(tid):
     if request.method=='POST':
         utr=request.form.get('utr','').strip()
         # Basic format/duplicate checks only. Real payment verification requires bank/UPI gateway or authorized admin review.
-        normalized = re.sub(r'\s+', '', utr).upper()
+        # Remove common copy/paste artifacts (spaces, hyphens, quotes); format check only.
+        normalized = re.sub(r"[\s\-\u2010-\u2015\u2212'\"`]", '', utr).upper()
         if not re.fullmatch(r'[A-Z0-9]{12,22}', normalized) or not any(ch.isdigit() for ch in normalized):
             flash('UTR format सही नहीं लग रहा। पेमेंट receipt से असली 12–22 अक्षरों/अंकों वाला UPI reference डालें; random text स्वीकार नहीं होगा।')
-        elif len(set(normalized)) < 5 or normalized.isdigit() and (normalized in '0123456789012345678901' or normalized in '1234567890123456789012'):
-            flash('यह reference असली UTR जैसा नहीं लग रहा। अपनी payment receipt वाला reference डालें।')
-        elif db().execute('SELECT 1 FROM registrations WHERE UPPER(utr)=? LIMIT 1',(normalized,)).fetchone():
+        elif any(re.sub(r"[\s\-\u2010-\u2015\u2212'\"`]", '', row['utr'] or '').upper() == normalized
+                 for row in db().execute('SELECT utr FROM registrations WHERE utr IS NOT NULL').fetchall()):
             flash('यह UTR पहले इस्तेमाल हो चुका है। हर payment reference केवल एक बार जमा हो सकता है।')
         else:
             try:
@@ -180,7 +183,7 @@ def join(tid):
                 return redirect(url_for('my_matches'))
             except sqlite3.IntegrityError:flash('आप पहले ही इस tournament में join कर चुके हैं।')
     upi=f"upi://pay?pa={quote(UPI_ID)}&pn={quote('Vortex Arena')}&am={t['entry_fee']}&cu=INR&tn={quote(t['title'])}"
-    body=f'''<h1 class="title">Register Tournament</h1><div class="card"><h3>{t['title']}</h3><div class="fee">Entry Fee: ₹{t['entry_fee']}</div><div class="muted">Prize pool ₹{t['prize_pool']:,} • {t['players']}/{t['slots']} players</div></div><div class="card"><b>Step 1 — Pay Entry Fee</b><p class="muted">UPI app खुलेगा। पेमेंट करने से पहले नाम और amount जाँचें।</p><a class="btn green full" href="{upi}">Open UPI App</a><p class="muted">UPI ID: <b>{UPI_ID}</b></p><button class="btn secondary full" onclick="navigator.clipboard.writeText('{UPI_ID}').then(()=>alert('UPI ID copied'))">Copy UPI ID</button></div><div class="card"><b>Step 2 — Submit UTR</b><p class="muted">Payment receipt से UTR / UPI reference कॉपी करके यहाँ paste करें। यह तुरंत payment proof नहीं है; admin verification ज़रूरी है।</p><form method="post"><div class="field"><label>UTR / UPI transaction reference</label><input name="utr" minlength="12" maxlength="22" pattern="[A-Za-z0-9]{12,22}" required autocomplete="off" placeholder="Paste real 12–22 character UTR"><p class="muted">Random text और पहले इस्तेमाल हुआ UTR reject होगा। Format check बैंक से payment की पुष्टि नहीं है; status review में रहेगा।</p></div><button class="btn full">Submit & Register</button></form></div>'''
+    body=f'''<h1 class="title">Register Tournament</h1><div class="card"><h3>{t['title']}</h3><div class="fee">Entry Fee: ₹{t['entry_fee']}</div><div class="muted">Prize pool ₹{t['prize_pool']:,} • {t['players']}/{t['slots']} players</div></div><div class="card"><b>Step 1 — Pay Entry Fee</b><p class="muted">UPI app खुलेगा। पेमेंट करने से पहले नाम और amount जाँचें।</p><a class="btn green full" href="{upi}">Open UPI App</a><p class="muted">UPI ID: <b>{UPI_ID}</b></p><button class="btn secondary full" onclick="navigator.clipboard.writeText('{UPI_ID}').then(()=>alert('UPI ID copied'))">Copy UPI ID</button></div><div class="card"><b>Step 2 — Submit UTR</b><p class="muted">Payment receipt से UTR / UPI reference कॉपी करके यहाँ paste करें। यह तुरंत payment proof नहीं है; admin verification ज़रूरी है।</p><form method="post"><div class="field"><label>UTR / UPI transaction reference</label><input name="utr" minlength="12" maxlength="22" required autocomplete="off" placeholder="Paste UPI reference from receipt"><p class="muted">Random text और पहले इस्तेमाल हुआ UTR reject होगा। Format check बैंक से payment की पुष्टि नहीं है; status review में रहेगा।</p></div><button class="btn full">Submit & Register</button></form></div>'''
     return page(body,'tournaments',True)
 @app.route('/my-matches')
 def my_matches():

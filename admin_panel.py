@@ -1,7 +1,7 @@
 # Vortex Arena Admin Panel - Python + Flask + shared SQLite database
 # Run: python Vortex_Arena_Admin_Panel.py
 # Place this file beside Vortex_Arena_User_App_Fixed.py. Both use vortex_arena_users.db.
-import os, sys, sqlite3, threading, time, webbrowser, secrets, re
+import os, sys, sqlite3, threading, time, webbrowser, secrets, re, subprocess, html
 from pathlib import Path
 from datetime import datetime
 try:
@@ -10,12 +10,16 @@ except ImportError:
     subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'flask'])
     from flask import Flask, request, redirect, url_for, session, flash, render_template_string, g
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 BASE=Path(__file__).resolve().parent
 DB=BASE/'vortex_arena_users.db'
 app=Flask(__name__)
 app.secret_key=os.environ.get('VORTEX_SECRET_KEY') or secrets.token_hex(32)
 app.config['MAX_CONTENT_LENGTH']=4*1024*1024
+UPLOADS=BASE/'vortex_uploads'
+UPLOADS.mkdir(exist_ok=True)
+ALLOWED_IMAGE_EXTENSIONS={'.png','.jpg','.jpeg','.webp','.gif'}
 GAMES=['Free Fire','BGMI','Roblox','Minecraft','Call of Duty Mobile','Valorant','eFootball','Viral Land','Other']
 
 def connect():
@@ -46,6 +50,11 @@ def db():
 def close_db(exc):
     c=g.pop('db',None)
     if c:c.close()
+
+@app.route('/uploads/<path:name>')
+def uploaded(name):
+    from flask import send_from_directory
+    return send_from_directory(UPLOADS, secure_filename(name))
 
 def logged(): return bool(session.get('admin_id'))
 def need_login():
@@ -92,6 +101,18 @@ def tournaments():
                 tid=int(request.form['id']); c.execute('DELETE FROM registrations WHERE tournament_id=?',(tid,)); c.execute('DELETE FROM tournaments WHERE id=?',(tid,)); c.commit(); flash('Tournament और उसकी registrations delete हुईं।')
             elif action=='save':
                 game=request.form.get('game','Other'); title=request.form.get('title','').strip(); fee=int(request.form.get('entry_fee',0)); prize=int(request.form.get('prize_pool',100)); slots=int(request.form.get('slots',48)); start=request.form.get('start_time','').strip(); end=request.form.get('end_time','').strip(); status=request.form.get('status','Upcoming'); room=request.form.get('room_id','').strip(); pw=request.form.get('room_password','').strip(); yt=request.form.get('youtube_url','').strip(); img=request.form.get('image_url','').strip(); tid=request.form.get('id','').strip()
+                image_file=request.files.get('image_file')
+                if image_file and image_file.filename:
+                    ext=Path(secure_filename(image_file.filename)).suffix.lower()
+                    if ext not in ALLOWED_IMAGE_EXTENSIONS or image_file.mimetype not in ('image/png','image/jpeg','image/webp','image/gif'):
+                        raise ValueError('Banner के लिए PNG, JPG, WEBP या GIF फोटो चुनें।')
+                    saved_name=f'tournament_{secrets.token_hex(10)}{ext}'
+                    image_file.save(UPLOADS/saved_name)
+                    img='/uploads/'+saved_name
+                elif tid and not img:
+                    old_image=c.execute('SELECT image_url FROM tournaments WHERE id=?',(int(tid),)).fetchone()
+                    if old_image and old_image['image_url']:
+                        img=old_image['image_url']
                 if not title or fee<0 or prize<0 or slots<1 or not start or not end: raise ValueError('सभी जरूरी fields सही भरें।')
                 if status not in ('Upcoming','Live','Completed'):status='Upcoming'
                 if tid:
@@ -105,7 +126,7 @@ def tournaments():
     if request.args.get('edit','').isdigit():edit=c.execute('SELECT * FROM tournaments WHERE id=?',(int(request.args['edit']),)).fetchone()
     val=lambda k,d='': (edit[k] if edit and k in edit.keys() and edit[k] is not None else d)
     gameopts=''.join(f'<option {"selected" if val("game","Free Fire")==g else ""}>{g}</option>' for g in GAMES)
-    body=f'''<h1>Manage Tournaments</h1><p class="muted">Create or edit tournament details. Room password only appears to players after the scheduled start time in the compatible user app.</p><section class="card"><h2>{'Edit Tournament' if edit else 'Add Tournament'}</h2><form method="post"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="{val('id')}"><div class="formgrid"><div><label>Game</label><select name="game">{gameopts}</select></div><div><label>Tournament title</label><input name="title" required value="{val('title')}" placeholder="Free Fire Squad Battle"></div><div><label>Entry fee (₹)</label><input type="number" min="0" name="entry_fee" value="{val('entry_fee','5')}" required></div><div><label>Prize pool / reward (₹)</label><input type="number" min="0" name="prize_pool" value="{val('prize_pool','100')}" required></div><div><label>Total slots</label><input type="number" min="1" name="slots" value="{val('slots','48')}" required></div><div><label>Status</label><select name="status">{''.join(f'<option {"selected" if val("status","Upcoming")==s else ""}>{s}</option>' for s in ['Upcoming','Live','Completed'])}</select></div><div><label>Start time (local; e.g. 2026-10-12 19:50)</label><input name="start_time" value="{val('start_time')}" required placeholder="2026-10-12 19:50"></div><div><label>End time</label><input name="end_time" value="{val('end_time')}" required placeholder="2026-10-12 20:50"></div><div><label>Room ID</label><input name="room_id" value="{val('room_id')}" placeholder="Room ID"></div><div><label>Room password (release after start)</label><input name="room_password" value="{val('room_password')}" placeholder="Room password"></div><div><label>YouTube Live URL</label><input name="youtube_url" value="{val('youtube_url')}" placeholder="https://youtube.com/live/..."></div><div><label>Tournament image URL</label><input name="image_url" value="{val('image_url')}" placeholder="https://.../game-art.jpg"></div><div class="full"><button>{'Save Changes' if edit else '＋ Create Tournament'}</button> <a class="btn secondary" href="{url_for('tournaments')}">Clear</a></div></div></form></section><h2 style="margin-top:24px">All Tournaments</h2>'''
+    body=f'''<h1>Manage Tournaments</h1><p class="muted">Create or edit tournament details. Room password only appears to players after the scheduled start time in the compatible user app.</p><section class="card"><h2>{'Edit Tournament' if edit else 'Add Tournament'}</h2><form method="post" enctype="multipart/form-data"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="{val('id')}"><div class="formgrid"><div><label>Game</label><select name="game">{gameopts}</select></div><div><label>Tournament title</label><input name="title" required value="{val('title')}" placeholder="Free Fire Squad Battle"></div><div><label>Entry fee (₹)</label><input type="number" min="0" name="entry_fee" value="{val('entry_fee','5')}" required></div><div><label>Prize pool / reward (₹)</label><input type="number" min="0" name="prize_pool" value="{val('prize_pool','100')}" required></div><div><label>Total slots</label><input type="number" min="1" name="slots" value="{val('slots','48')}" required></div><div><label>Status</label><select name="status">{''.join(f'<option {"selected" if val("status","Upcoming")==s else ""}>{s}</option>' for s in ['Upcoming','Live','Completed'])}</select></div><div><label>Start time (local; e.g. 2026-10-12 19:50)</label><input name="start_time" value="{val('start_time')}" required placeholder="2026-10-12 19:50"></div><div><label>End time</label><input name="end_time" value="{val('end_time')}" required placeholder="2026-10-12 20:50"></div><div><label>Room ID</label><input name="room_id" value="{val('room_id')}" placeholder="Room ID"></div><div><label>Room password (release after start)</label><input name="room_password" value="{val('room_password')}" placeholder="Room password"></div><div><label>YouTube Live URL</label><input name="youtube_url" value="{val('youtube_url')}" placeholder="https://youtube.com/live/..."></div><div><label>Tournament banner image URL (optional)</label><input name="image_url" value="{val('image_url')}" placeholder="https://.../game-art.jpg"><small class="muted">URL खाली छोड़कर नीचे फोटो भी चुन सकते हैं।</small></div><div><label>Choose banner photo (PNG / JPG / WEBP / GIF, max 4 MB)</label><input type="file" name="image_file" accept="image/png,image/jpeg,image/webp,image/gif"><small class="muted">फोटो चुनकर tournament save करें। User Panel में banner दिखेगा।</small></div><div class="full"><button>{'Save Changes' if edit else '＋ Create Tournament'}</button> <a class="btn secondary" href="{url_for('tournaments')}">Clear</a></div></div></form></section><h2 style="margin-top:24px">All Tournaments</h2>'''
     rows=c.execute('SELECT t.*, (SELECT COUNT(*) FROM registrations r WHERE r.tournament_id=t.id) AS reg_count FROM tournaments t ORDER BY id DESC').fetchall()
     body+='<div class="tablewrap"><table><tr><th>Game / Title</th><th>Fee / Prize</th><th>Players</th><th>Time</th><th>Status</th><th>Actions</th></tr>'
     for t in rows:
