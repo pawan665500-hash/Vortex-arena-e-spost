@@ -32,6 +32,7 @@ def init_db():
             if col not in cols: c.execute(f'ALTER TABLE {table} ADD COLUMN {col} {definition}')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_accounts(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS admin_notifications(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,message TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,seen INTEGER DEFAULT 0)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS tournament_results(id INTEGER PRIMARY KEY AUTOINCREMENT,tournament_id INTEGER NOT NULL,player_name TEXT NOT NULL,team_name TEXT DEFAULT '',kills INTEGER DEFAULT 0,score INTEGER DEFAULT 0,position INTEGER NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         # First-run account is intentionally a temporary credential; change it immediately.
         if c.execute('SELECT COUNT(*) FROM admin_accounts').fetchone()[0]==0:
             username=os.environ.get('VORTEX_ADMIN_USER','admin')
@@ -150,19 +151,68 @@ def results():
     if r:return r
     c=db()
     if request.method=='POST':
+        action=request.form.get('action','')
+        if action=='add_scoreboard':
+            try:
+                tid=int(request.form.get('tournament_id','0'))
+                tournament=c.execute('SELECT id,title FROM tournaments WHERE id=?',(tid,)).fetchone()
+                if not tournament:
+                    flash('पहले सही tournament चुनें।')
+                    return redirect(url_for('results'))
+                # Replace the saved scoreboard for this tournament, so corrections don't create duplicates.
+                entries=[]
+                for i in range(1,13):
+                    name=request.form.get(f'player_name_{i}','').strip()[:100]
+                    team=request.form.get(f'team_name_{i}','').strip()[:100]
+                    kills_raw=request.form.get(f'kills_{i}','0').strip()
+                    score_raw=request.form.get(f'score_{i}','0').strip()
+                    if not name:
+                        continue
+                    try:
+                        kills=max(0,min(9999,int(kills_raw or 0)))
+                        score=max(0,min(999999,int(score_raw or 0)))
+                    except ValueError:
+                        flash(f'Player {i} के Kills और Score में केवल संख्या लिखें।')
+                        return redirect(url_for('results'))
+                    entries.append((tid,name,team,kills,score,i))
+                if not entries:
+                    flash('कम से कम एक खिलाड़ी का नाम भरें।')
+                    return redirect(url_for('results'))
+                c.execute('DELETE FROM tournament_results WHERE tournament_id=?',(tid,))
+                c.executemany('INSERT INTO tournament_results(tournament_id,player_name,team_name,kills,score,position) VALUES(?,?,?,?,?,?)',entries)
+                c.commit()
+                flash(f'{tournament["title"]}: {len(entries)} खिलाड़ियों का रिज़ल्ट सेव हो गया। User Panel के Result/Leaderboard में दिखेगा।')
+            except (ValueError,sqlite3.Error) as e:
+                c.rollback(); flash('रिज़ल्ट सेव नहीं हुआ: '+str(e))
+            return redirect(url_for('results'))
         try:
             rid=int(request.form.get('registration_id','0')); action=request.form.get('action',''); row=c.execute('SELECT r.*,t.prize_pool,t.title FROM registrations r JOIN tournaments t ON t.id=r.tournament_id WHERE r.id=?',(rid,)).fetchone()
             if not row:flash('Registration नहीं मिला।')
             elif action=='winner':
                 if row['payment_status']!='Verified':flash('Winner घोषित करने से पहले payment/registration verify करें।')
                 else:
-                    c.execute("UPDATE registrations SET winner_status='Winner' WHERE id=?",(rid,));c.execute("INSERT INTO admin_notifications(user_id,message) VALUES(?,?)",(row['user_id'],f"बधाई हो! आप {row['title']} के विजेता बने हैं। घोषित reward ₹{row['prize_pool']} है। Payout admin confirmation के अधीन है।"));c.commit();flash('Winner set हुआ और app notification record बना। वास्तविक SMS/push अपने-आप नहीं भेजा जाता।')
+                    c.execute("UPDATE registrations SET winner_status='Winner' WHERE id=?",(rid,));c.execute("INSERT INTO admin_notifications(user_id,message) VALUES(?,?)",(row['user_id'],f"बधाई हो! आप {row['title']} के विजेता बने हैं। घोषित reward ₹{row['prize_pool']} है। Payout admin confirmation के अधीन है।"));c.commit();flash('Winner set हुआ और app notification record बना। SMS/push अपने-आप नहीं भेजा जाता।')
             elif action=='payout':c.execute("UPDATE registrations SET payout_status='Paid' WHERE id=?",(rid,));c.commit();flash('Payout को Paid mark किया। वास्तविक transfer अलग से करना और verify करना होगा।')
         except (ValueError,sqlite3.Error) as e:c.rollback();flash('Update नहीं हुआ: '+str(e))
         return redirect(url_for('results'))
+    tournaments=c.execute('SELECT id,title,game FROM tournaments ORDER BY id DESC').fetchall()
+    saved=c.execute('SELECT tr.*,t.title,t.game FROM tournament_results tr JOIN tournaments t ON t.id=tr.tournament_id ORDER BY tr.tournament_id DESC,tr.position ASC').fetchall()
     rows=c.execute("SELECT r.*,u.email,u.username,t.title,t.prize_pool,t.game FROM registrations r JOIN users u ON u.id=r.user_id JOIN tournaments t ON t.id=r.tournament_id WHERE r.payment_status='Verified' ORDER BY r.id DESC").fetchall()
-    body='<h1>Results & Rewards</h1><p class="muted">Winner को mark करने से database में notification बनता है। SMS/push notification और वास्तविक prize transfer के लिए अलग integration/transfer चाहिए।</p><div class="tablewrap"><table><tr><th>Player</th><th>Tournament</th><th>Reward</th><th>Winner</th><th>Payout</th><th>Actions</th></tr>'
-    for x in rows:body+=f'''<tr><td>{x['username'] or 'Player'}<br><small>{x['email']}</small></td><td>{x['title']}<br><small>{x['game']}</small></td><td>₹{x['prize_pool']}</td><td>{x['winner_status'] or 'Not set'}</td><td>{x['payout_status']}</td><td><div class="row"><form method="post"><input type="hidden" name="registration_id" value="{x['id']}"><input type="hidden" name="action" value="winner"><button>Set Winner</button></form><form method="post" onsubmit="return confirm('Mark payout paid only after transfer?')"><input type="hidden" name="registration_id" value="{x['id']}"><input type="hidden" name="action" value="payout"><button class="secondary">Mark Paid</button></form></div></td></tr>'''
+    opts=''.join(f'<option value="{t["id"]}">{t["game"]} — {t["title"]}</option>' for t in tournaments)
+    body='''<div class="row between"><div><h1>Results & Rewards</h1><p class="muted">12 खिलाड़ियों तक के kills, score, team और position भरें। सेव करने पर User Panel के Result/Leaderboard में दिखाई देगा।</p></div><a class="btn" href="#add-result">＋ Add Result</a></div>
+    <section class="card" id="add-result"><h2>＋ Add Result / Scoreboard</h2><form method="post"><input type="hidden" name="action" value="add_scoreboard"><label>Tournament</label><select name="tournament_id" required>'''+opts+'''</select><p class="muted">पहली तीन positions पर 🥇🥈🥉 अपने-आप दिखेंगे। खाली खिलाड़ी छोड़ सकते हैं। दोबारा सेव करने पर उसी tournament का पुराना scoreboard बदल जाएगा।</p><div class="tablewrap"><table><tr><th>Position</th><th>Player Name</th><th>Team Name</th><th>Kills</th><th>Score</th></tr>'''
+    medals={1:'🥇 1st',2:'🥈 2nd',3:'🥉 3rd'}
+    for i in range(1,13):
+        pos=medals.get(i,f'{i}th')
+        body+=f'''<tr><td><b>{pos}</b></td><td><input name="player_name_{i}" placeholder="Player {i}" maxlength="100"></td><td><input name="team_name_{i}" placeholder="Team"></td><td><input name="kills_{i}" type="number" min="0" max="9999" value="0"></td><td><input name="score_{i}" type="number" min="0" max="999999" value="0"></td></tr>'''
+    body+='''</table></div><button type="submit">💾 Save Result</button></form></section>
+    <h2>Published Scoreboards</h2><div class="tablewrap"><table><tr><th>Position</th><th>Player</th><th>Team</th><th>Tournament</th><th>Kills</th><th>Score</th></tr>'''
+    for x in saved:
+        medal=medals.get(x['position'],f"{x['position']}th")
+        body+=f'''<tr><td><b>{medal}</b></td><td>{html.escape(x['player_name'])}</td><td>{html.escape(x['team_name'] or '—')}</td><td>{html.escape(x['title'])}<br><small>{html.escape(x['game'])}</small></td><td>{x['kills']}</td><td>{x['score']}</td></tr>'''
+    if not saved: body+='<tr><td colspan="6" class="muted">अभी कोई scoreboard publish नहीं हुआ। ऊपर Add Result से जोड़ें।</td></tr>'
+    body+='</table></div><h2>Verified Registration Winners & Payouts</h2><div class="tablewrap"><table><tr><th>Player</th><th>Tournament</th><th>Reward</th><th>Winner</th><th>Payout</th><th>Actions</th></tr>'
+    for x in rows:body+=f'''<tr><td>{html.escape(x['username'] or 'Player')}<br><small>{html.escape(x['email'])}</small></td><td>{html.escape(x['title'])}<br><small>{html.escape(x['game'])}</small></td><td>₹{x['prize_pool']}</td><td>{html.escape(x['winner_status'] or 'Not set')}</td><td>{html.escape(x['payout_status'])}</td><td><div class="row"><form method="post"><input type="hidden" name="registration_id" value="{x['id']}"><input type="hidden" name="action" value="winner"><button>Set Winner</button></form><form method="post" onsubmit="return confirm('Mark payout paid only after transfer?')"><input type="hidden" name="registration_id" value="{x['id']}"><input type="hidden" name="action" value="payout"><button class="secondary">Mark Paid</button></form></div></td></tr>'''
     body+='</table></div>'
     return shell('Results','results',body)
 

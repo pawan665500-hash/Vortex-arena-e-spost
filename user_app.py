@@ -50,6 +50,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,phone TEXT DEFAULT '',username TEXT DEFAULT '',player_uid TEXT DEFAULT '',team_name TEXT DEFAULT '',game TEXT DEFAULT 'Free Fire',game_uid TEXT DEFAULT '',avatar TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         c.execute('''CREATE TABLE IF NOT EXISTS tournaments(id INTEGER PRIMARY KEY AUTOINCREMENT,game TEXT NOT NULL,title TEXT NOT NULL,entry_fee INTEGER NOT NULL,prize_pool INTEGER NOT NULL,slots INTEGER NOT NULL,players INTEGER NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,room_id TEXT DEFAULT '',room_password TEXT DEFAULT '',status TEXT DEFAULT 'Upcoming',youtube_url TEXT DEFAULT '')''')
         c.execute('''CREATE TABLE IF NOT EXISTS registrations(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,tournament_id INTEGER NOT NULL,utr TEXT DEFAULT '',payment_status TEXT DEFAULT 'Pending review',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(user_id,tournament_id))''')
+        c.execute('''CREATE TABLE IF NOT EXISTS tournament_results(id INTEGER PRIMARY KEY AUTOINCREMENT,tournament_id INTEGER NOT NULL,player_name TEXT NOT NULL,team_name TEXT DEFAULT '',kills INTEGER DEFAULT 0,score INTEGER DEFAULT 0,position INTEGER NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
         n = c.execute('SELECT COUNT(*) FROM tournaments').fetchone()[0]
         if n == 0:
             seed = [
@@ -199,8 +200,23 @@ def live():
 @app.route('/leaderboard')
 def leaderboard():
     if not current_user():return redirect(url_for('login'))
+    results=db().execute('SELECT tr.*,t.title,t.game FROM tournament_results tr JOIN tournaments t ON t.id=tr.tournament_id ORDER BY tr.tournament_id DESC,tr.position ASC').fetchall()
+    body='<h1 class="title">🏆 Results & Leaderboard</h1><div class="subtitle">Admin द्वारा प्रकाशित टूर्नामेंट रिज़ल्ट</div>'
+    if results:
+        current_tid=None
+        medals={1:'🥇',2:'🥈',3:'🥉'}
+        for r in results:
+            if r['tournament_id']!=current_tid:
+                current_tid=r['tournament_id']
+                body+=f'<div class="card"><h3>{r["game"]} — {r["title"]}</h3>'
+            medal=medals.get(r['position'],f'#{r["position"]}')
+            body+=f'<div class="row between" style="padding:9px 0;border-bottom:1px solid #203b75"><div style="flex:1"><b>{medal} {r["player_name"]}</b><div class="muted">{r["team_name"] or "Team not provided"}</div></div><div style="text-align:right"><b>{r["score"]} pts</b><div class="muted">{r["kills"]} kills</div></div></div>'
+            # Close each tournament card before next heading / at end
+        body+='</div>'
+    else:
+        body+='<div class="card"><b>अभी रिज़ल्ट प्रकाशित नहीं हुआ है।</b><p class="muted">Admin द्वारा रिज़ल्ट डालने के बाद यहाँ खिलाड़ियों की position, team, kills और score दिखेंगे।</p></div>'
     rows=db().execute('SELECT username,team_name,game FROM users WHERE username!="" ORDER BY username LIMIT 50').fetchall()
-    body='<h1 class="title">Leaderboard</h1><div class="subtitle">Top Players • Best Teams</div>'+''.join(f'<div class="card row"><b style="color:#9d7aff">#{i}</b><div style="flex:1"><b>{r["username"]}</b><div class="muted">{r["team_name"] or "Solo Player"} • {r["game"]}</div></div></div>' for i,r in enumerate(rows,1))
+    body+='<h2 class="title" style="font-size:18px;margin-top:20px">Players</h2>'+''.join(f'<div class="card row"><b style="color:#9d7aff">#{i}</b><div style="flex:1"><b>{r["username"]}</b><div class="muted">{r["team_name"] or "Solo Player"} • {r["game"]}</div></div></div>' for i,r in enumerate(rows,1))
     return page(body,'leaderboard',True)
 @app.route('/settings')
 def settings():
