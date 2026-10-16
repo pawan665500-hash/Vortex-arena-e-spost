@@ -17,7 +17,7 @@ UPLOADS=Path(os.environ.get('VORTEX_UPLOADS_DIR', str(BASE/'vortex_uploads'))).r
 UPLOADS.mkdir(parents=True, exist_ok=True)
 app=Flask(__name__)
 app.secret_key=os.environ.get('VORTEX_SECRET_KEY') or secrets.token_hex(32)
-app.config['MAX_CONTENT_LENGTH']=4*1024*1024
+app.config['MAX_CONTENT_LENGTH']=50*1024*1024
 GAMES=['Free Fire','BGMI','Roblox','Minecraft','Call of Duty Mobile','Valorant','eFootball','Viral Land','Other']
 
 def connect():
@@ -317,10 +317,13 @@ def pops_reports_admin():
     if r:return r
     with connect() as c:
         c.execute("CREATE TABLE IF NOT EXISTS pops_reports(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,category TEXT NOT NULL,details TEXT NOT NULL,evidence_url TEXT DEFAULT '',status TEXT DEFAULT 'Sent to Host',created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        cols=[x['name'] for x in c.execute('PRAGMA table_info(pops_reports)').fetchall()]
+        for col,definition in [('reporter_uid',"TEXT DEFAULT ''"),('reported_uid',"TEXT DEFAULT ''"),('video_path',"TEXT DEFAULT ''"),('admin_note',"TEXT DEFAULT ''")]:
+            if col not in cols: c.execute(f'ALTER TABLE pops_reports ADD COLUMN {col} {definition}')
         if request.method=='POST':
-            rid=request.form.get('report_id',''); status=request.form.get('status','Under review')
+            rid=request.form.get('report_id',''); status=request.form.get('status','Under review'); note=request.form.get('admin_note','').strip()[:1000]
             if rid.isdigit() and status in ('Sent to Host','Under review','Resolved','Rejected with evidence'):
-                c.execute('UPDATE pops_reports SET status=? WHERE id=?',(status,int(rid))); c.commit(); flash('POPS report status updated.')
+                c.execute('UPDATE pops_reports SET status=?,admin_note=? WHERE id=?',(status,note,int(rid))); c.commit(); flash('POPS report status updated.')
                 return redirect(url_for('pops_reports_admin'))
         rows=c.execute('SELECT p.*,u.username,u.email FROM pops_reports p LEFT JOIN users u ON u.id=p.user_id ORDER BY p.id DESC').fetchall()
     body='<h1>POPS Reports / Host Review</h1><p>Admin के खिलाफ शिकायत का अंतिम निर्णय Host review के अंतर्गत होना चाहिए। केवल आरोप सिद्ध न होना अपने-आप झूठी रिपोर्ट का प्रमाण नहीं है।</p>'
@@ -334,26 +337,19 @@ def manage_challenges():
     if r:return r
     with connect() as c:
         c.execute("CREATE TABLE IF NOT EXISTS arena_challenges(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT DEFAULT '',game TEXT DEFAULT 'All games',starts_at TEXT DEFAULT '',ends_at TEXT DEFAULT '',active INTEGER DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
-        # Additive columns keep old challenge records intact.
-        chcols=[r['name'] for r in c.execute('PRAGMA table_info(arena_challenges)')]
-        for col,definition in [('starts_at',"TEXT DEFAULT ''"),('ends_at',"TEXT DEFAULT ''")]:
-            if col not in chcols: c.execute(f'ALTER TABLE arena_challenges ADD COLUMN {col} {definition}')
         if request.method=='POST':
             action=request.form.get('action','create')
-            cid=request.form.get('id','')
             if action=='toggle':
+                cid=request.form.get('id','')
                 if cid.isdigit(): c.execute('UPDATE arena_challenges SET active=CASE active WHEN 1 THEN 0 ELSE 1 END WHERE id=?',(int(cid),)); c.commit()
-            elif action=='edit' and cid.isdigit():
-                title=request.form.get('title','').strip()[:120]; desc=request.form.get('description','').strip()[:1000]; game=request.form.get('game','All games')[:80]; starts=request.form.get('starts_at','')[:30]; ends=request.form.get('ends_at','')[:30]
-                if title: c.execute('UPDATE arena_challenges SET title=?,description=?,game=?,starts_at=?,ends_at=? WHERE id=?',(title,desc,game,starts,ends,int(cid))); c.commit(); flash('Challenge updated.')
             else:
-                title=request.form.get('title','').strip()[:120]; desc=request.form.get('description','').strip()[:1000]; game=request.form.get('game','All games')[:80]; starts=request.form.get('starts_at','')[:30]; ends=request.form.get('ends_at','')[:30]
-                if title: c.execute('INSERT INTO arena_challenges(title,description,game,starts_at,ends_at) VALUES(?,?,?,?,?)',(title,desc,game,starts,ends)); c.commit(); flash('Challenge created.')
+                title=request.form.get('title','').strip()[:120]; desc=request.form.get('description','').strip()[:1000]; game=request.form.get('game','All games')[:80]
+                if title: c.execute('INSERT INTO arena_challenges(title,description,game) VALUES(?,?,?)',(title,desc,game)); c.commit(); flash('Challenge created.')
             return redirect(url_for('manage_challenges'))
         rows=c.execute('SELECT * FROM arena_challenges ORDER BY id DESC').fetchall()
-    active=sum(1 for x in rows if x['active']); inactive=len(rows)-active
-    body=f'<h1>Challenge Management</h1><section class="card"><h3>Challenge Overview</h3><div class="grid"><div><b>{active}</b><p>Active</p></div><div><b>{inactive}</b><p>Inactive</p></div></div><div style="height:10px;background:#14274c;border-radius:8px;overflow:hidden"><div style="width:{int(active/max(len(rows),1)*100)}%;height:10px;background:linear-gradient(90deg,#2bcaff,#812cff)"></div></div></section><section class="card"><h3>Create Challenge</h3><form method="post"><label>Challenge title</label><input name="title" required maxlength="120"><label>Description</label><textarea name="description" maxlength="1000"></textarea><label>Game</label><select name="game"><option>All games</option><option>Free Fire</option><option>BGMI</option><option>Roblox</option><option>Minecraft</option><option>Call of Duty Mobile</option></select><label>Start date/time</label><input name="starts_at" placeholder="2026-10-20 18:00"><label>End date/time</label><input name="ends_at" placeholder="2026-10-20 20:00"><button>Create Challenge</button></form></section>'
-    for x in rows: body+=f'<section class="card"><b>#{x["id"]} {html.escape(x["title"])}</b><p>{html.escape(x["description"] or "")}</p><p>{html.escape(x["game"])} · {"Active" if x["active"] else "Inactive"}</p><form method="post"><input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{x["id"]}"><label>Edit title</label><input name="title" value="{html.escape(x["title"],quote=True)}" required><label>Edit description</label><textarea name="description">{html.escape(x["description"] or "")}</textarea><label>Game</label><select name="game">{''.join(f'<option {"selected" if x["game"]==g else ""}>{g}</option>' for g in GAMES)}</select><label>Start date/time</label><input name="starts_at" value="{html.escape(x["starts_at"] or "",quote=True)}"><label>End date/time</label><input name="ends_at" value="{html.escape(x["ends_at"] or "",quote=True)}"><button>Save Changes</button></form><form method="post" style="margin-top:8px"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{x["id"]}"><button>{"Deactivate" if x["active"] else "Activate"}</button></form></section>'
+    active_count=sum(1 for x in rows if int(x['active'] or 0)); inactive_count=len(rows)-active_count
+    body=f'<h1>Challenge Management</h1><section class="grid"><div class="stat">Total Challenges<strong>{len(rows)}</strong></div><div class="stat">Active<strong>{active_count}</strong></div><div class="stat">Inactive<strong>{inactive_count}</strong></div></section><section class="card"><b>Challenge Status Graph</b><div style="display:flex;gap:8px;align-items:end;height:90px;margin-top:14px"><div title="Active" style="width:45%;height:{max(8,active_count*20)}px;background:linear-gradient(#29d6ff,#3b54ff);border-radius:8px 8px 0 0"></div><div title="Inactive" style="width:45%;height:{max(8,inactive_count*20)}px;background:linear-gradient(#a56aff,#6520c9);border-radius:8px 8px 0 0"></div></div><small>Active: {active_count} · Inactive: {inactive_count}</small></section><section class="card"><form method="post"><label>Challenge title</label><input name="title" required maxlength="120"><label>Description</label><textarea name="description" maxlength="1000"></textarea><label>Game</label><select name="game"><option>All games</option><option>Free Fire</option><option>BGMI</option><option>Roblox</option><option>Minecraft</option><option>Call of Duty Mobile</option></select><button>Create Challenge</button></form></section>' 
+    for x in rows: body+=f'<section class="card"><b>{html.escape(x["title"])}</b><p>{html.escape(x["description"] or "")}</p><p>{html.escape(x["game"])} · {"Active" if x["active"] else "Inactive"}</p><form method="post"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{x["id"]}"><button>Toggle active</button></form></section>'
     return shell('Challenges','challenges',body)
 
 init_db()
