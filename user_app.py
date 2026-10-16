@@ -53,7 +53,7 @@ def init_db():
     with sqlite3.connect(DB) as c:
         c.execute('''CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,phone TEXT DEFAULT '',username TEXT DEFAULT '',player_uid TEXT DEFAULT '',team_name TEXT DEFAULT '',game TEXT DEFAULT 'Free Fire',game_uid TEXT DEFAULT '',avatar TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,arena_uid TEXT DEFAULT '',rank_points INTEGER DEFAULT 0,rank_name TEXT DEFAULT 'Bronze',master_right_until TEXT DEFAULT '')''')
         cols=[r[1] for r in c.execute('PRAGMA table_info(users)')]
-        for col,definition in [('arena_uid',"TEXT DEFAULT ''"),('rank_points','INTEGER DEFAULT 0'),('rank_name',"TEXT DEFAULT 'Bronze'"),('master_right_until',"TEXT DEFAULT ''")]:
+        for col,definition in [('arena_uid',"TEXT DEFAULT ''"),('rank_points','INTEGER DEFAULT 0'),('rank_name',"TEXT DEFAULT 'Bronze'"),('master_right_until',"TEXT DEFAULT ''"),('card_country',"TEXT DEFAULT 'India'"),('card_theme',"TEXT DEFAULT 'Neon Blue'"),('card_bio',"TEXT DEFAULT ''")]:
             if col not in cols: c.execute(f'ALTER TABLE users ADD COLUMN {col} {definition}')
         rows=c.execute("SELECT id,arena_uid FROM users WHERE arena_uid IS NULL OR arena_uid=''").fetchall()
         for row in rows: c.execute('UPDATE users SET arena_uid=? WHERE id=?',(f'VA-{10000+row[0]}',row[0]))
@@ -467,17 +467,44 @@ def social():
     body+=f'<div class="card"><h3>Support Us</h3><a class="btn" href="/support-chat">Chat with Admin</a> <a class="btn green" href="{WHATSAPP_SUPPORT}" target="_blank" rel="noopener">WhatsApp Support</a><p class="muted">Contact / UPI number: <b>{CONTACT_PHONE}</b></p><a class="btn secondary full" href="{DISCORD_URL}" target="_blank" rel="noopener">Join Vortex Arena Discord</a><p class="muted">यह Vortex Arena का Discord server invite link है।</p></div>'
     return page(body,'settings',True)
 
-@app.route('/player-card')
+@app.route('/player-card', methods=['GET','POST'])
 def player_card():
     u=current_user()
     if not u: return redirect(url_for('login'))
-    c=db(); keys=[(u['username'] or '').strip().lower(),(u['player_uid'] or '').strip().lower(),(u['arena_uid'] or '').strip().lower(),(u['game_uid'] or '').strip().lower()]; keys=[x for x in keys if x]
+    c=db()
+    if request.method=='POST':
+        name=request.form.get('card_name','').strip()[:60]
+        country=request.form.get('card_country','India').strip()[:40]
+        theme=request.form.get('card_theme','Neon Blue').strip()[:30]
+        bio=request.form.get('card_bio','').strip()[:160]
+        if name:
+            c.execute('UPDATE users SET username=?,card_country=?,card_theme=?,card_bio=? WHERE id=?',(name,country,theme,bio,u['id']))
+            c.commit(); flash('Player Card updated successfully.')
+        return redirect(url_for('player_card'))
+    # Re-fetch after editable card fields are saved; older DBs are upgraded by init_db().
+    u=c.execute('SELECT * FROM users WHERE id=?',(u['id'],)).fetchone()
+    keys=[(u['username'] or '').strip().lower(),(u['player_uid'] or '').strip().lower(),(u['arena_uid'] or '').strip().lower(),(u['game_uid'] or '').strip().lower()]; keys=[x for x in keys if x]
     result_rows=[]
     if keys:
-        marks=','.join('?' for _ in keys); result_rows=c.execute(f'SELECT * FROM tournament_results WHERE lower(player_name) IN ({marks}) ORDER BY id DESC',keys).fetchall()
+        marks=','.join('?' for _ in keys); result_rows=c.execute(f'SELECT * FROM tournament_results WHERE lower(player_name) IN ({marks}) ORDER BY created_at DESC,id DESC',keys).fetchall()
     wins=sum(1 for x in result_rows if int(x['position'] or 0)==1); kills=sum(int(x['kills'] or 0) for x in result_rows)
-    avatar=html.escape(u['avatar'] or ''); name=html.escape(u['username'] or 'Player')
-    body=f'''<h1 class="title">Vortex Player Card</h1><div class="player-card"><div class="player-card-head"><div class="player-card-brand">VORTEX ARENA</div><div class="player-card-tag">PLAYER PROFILE</div></div><div class="player-card-main"><img class="player-card-avatar" src="{avatar or 'https://dummyimage.com/200x200/101e3d/91a8ff.png&text=PLAYER'}" alt="Player avatar"><div><h2>{name}</h2><div class="muted">UID: {html.escape(u['arena_uid'] or '—')}</div><div class="player-card-rank">{html.escape(u['rank_name'] or 'Bronze')}</div></div></div><div class="player-card-stats"><div><b>{len(result_rows)}</b><span>Matches</span></div><div><b>{wins}</b><span>Wins</span></div><div><b>{kills}</b><span>Kills</span></div><div><b>{int(u['rank_points'] or 0)}</b><span>Points</span></div></div><div class="player-card-footer">{html.escape(u['game'] or 'Game not set')} · {html.escape(u['team_name'] or 'No Team')}</div></div><a class="btn full" href="/profile">Edit Player Profile</a><a class="btn secondary full" href="/social">Friends & Teams</a>'''
+    # Daily performance graph uses the user's actual published results; empty days are zero.
+    from datetime import date, timedelta
+    days=[(date.today()-timedelta(days=i)) for i in range(6,-1,-1)]
+    day_stats=[]
+    for day in days:
+        matches=[x for x in result_rows if str(x['created_at'] or '')[:10]==day.isoformat()]
+        day_stats.append((day.strftime('%d %b'),len(matches),sum(1 for x in matches if int(x['position'] or 0)==1)))
+    maxv=max([x[1] for x in day_stats]+[1])
+    bars=''.join(f'<div style="flex:1;min-width:0;text-align:center"><div style="height:90px;display:flex;align-items:end;justify-content:center;border-bottom:1px solid #294783"><div title="{m} matches, {w} wins" style="width:65%;height:{max(4,int(m/maxv*82))}px;background:linear-gradient(180deg,#31caff,#742dff);border-radius:5px 5px 0 0"></div></div><small style="display:block;font-size:9px;color:#9db6e7;margin-top:5px">{d}</small><small style="font-size:9px">{m}M/{w}W</small></div>' for d,m,w in day_stats)
+    theme=(u['card_theme'] or 'Neon Blue')
+    themes={'Neon Blue':'linear-gradient(135deg,#07142c,#143b83 55%,#07142c)','Purple Storm':'linear-gradient(135deg,#170b30,#6220a5 55%,#07142c)','Red Strike':'linear-gradient(135deg,#250810,#a71935 55%,#07142c)','Ice Cyan':'linear-gradient(135deg,#061c2c,#087e9c 55%,#07142c)'}
+    card_bg=themes.get(theme,themes['Neon Blue'])
+    avatar=html.escape(u['avatar'] or 'https://dummyimage.com/200x200/101e3d/91a8ff.png&text=PLAYER')
+    name=html.escape(u['username'] or 'Player')
+    body=f'''<h1 class="title">Vortex Player Card</h1><div class="player-card" style="background:{card_bg}"><div class="player-card-head"><div class="player-card-brand">VORTEX ARENA</div><div class="player-card-tag">PLAYER PROFILE</div></div><div class="player-card-main"><img class="player-card-avatar" src="{avatar}" alt="Player avatar"><div><h2>{name}</h2><div class="muted">Vortex UID: {html.escape(u['arena_uid'] or '—')}</div><div class="player-card-rank">{html.escape(u['rank_name'] or 'Bronze')}</div><div class="muted">{html.escape(u['card_country'] or 'India')}</div></div></div><div class="player-card-stats"><div><b>{len(result_rows)}</b><span>Matches</span></div><div><b>{wins}</b><span>Wins</span></div><div><b>{kills}</b><span>Kills</span></div><div><b>{int(u['rank_points'] or 0)}</b><span>Points</span></div></div><div class="player-card-footer">{html.escape(u['game'] or 'Game not set')} · {html.escape(u['team_name'] or 'No Team')}<br>{html.escape(u['card_bio'] or '')}</div></div>
+    <div class="card"><h3>Edit Player Card</h3><form method="post"><div class="field"><label>Player name</label><input name="card_name" value="{html.escape(u['username'] or '',quote=True)}" maxlength="60" required></div><div class="field"><label>Country</label><input name="card_country" value="{html.escape(u['card_country'] or 'India',quote=True)}" maxlength="40"></div><div class="field"><label>Card theme</label><select name="card_theme">{''.join(f'<option {"selected" if theme==t else ""}>{t}</option>' for t in themes)}</select></div><div class="field"><label>Short bio</label><input name="card_bio" value="{html.escape(u['card_bio'] or '',quote=True)}" maxlength="160" placeholder="Your play style"></div><button class="btn full">Save Player Card</button></form></div>
+    <div class="card"><h3>Daily Performance — Last 7 Days</h3><p class="muted">Graph is based on published match results only; missing result data is not estimated.</p><div style="display:flex;gap:8px;align-items:end">{bars}</div><div class="muted" style="margin-top:8px">M = matches · W = wins</div></div><a class="btn secondary full" href="/profile">Edit Full Profile</a><a class="btn secondary full" href="/social">Friends & Teams</a>'''
     return page(body,'settings',True)
 
 @app.route('/support-chat',methods=['GET','POST'])
@@ -544,7 +571,13 @@ def user_challenges():
     c=db(); c.execute("CREATE TABLE IF NOT EXISTS arena_challenges(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT DEFAULT '',game TEXT DEFAULT 'All games',starts_at TEXT DEFAULT '',ends_at TEXT DEFAULT '',active INTEGER DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
     rows=c.execute('SELECT * FROM arena_challenges WHERE active=1 ORDER BY id DESC').fetchall()
     body='<h1 class="title">Challenges</h1><p class="muted">यहाँ केवल Admin द्वारा बनाए गए सक्रिय challenges दिखाई देते हैं।</p>'
-    body+=''.join(f'<div class="card"><h3>{html.escape(r["title"])}</h3><p>{html.escape(r["description"] or "")}</p><span class="pill">{html.escape(r["game"] or "All games")}</span></div>' for r in rows) or '<div class="card">अभी कोई सक्रिय challenge नहीं है।</div>'
+    game_counts={}
+    for rr in rows: game_counts[rr['game'] or 'All games']=game_counts.get(rr['game'] or 'All games',0)+1
+    max_count=max(list(game_counts.values())+[1])
+    if rows:
+        body+='<div class="card"><h3>Active Challenge Graph</h3><p class="muted">यह graph active challenges की संख्या दिखाता है, player wins नहीं।</p>'
+        body+=''.join(f'<div style="margin:10px 0"><div class="row between"><span>{html.escape(gm)}</span><b>{count}</b></div><div style="height:8px;background:#13284f;border-radius:8px;overflow:hidden"><div style="width:{int(count/max_count*100)}%;height:8px;background:linear-gradient(90deg,#2bcaff,#812cff)"></div></div></div>' for gm,count in game_counts.items())+'</div>'
+    body+=''.join(f'<div class="card"><h3>{html.escape(r["title"])}</h3><p>{html.escape(r["description"] or "")}</p><span class="pill">{html.escape(r["game"] or "All games")}</span><p class="muted">Starts: {html.escape(r["starts_at"] or "To be announced")} · Ends: {html.escape(r["ends_at"] or "To be announced")}</p></div>' for r in rows) or '<div class="card">अभी कोई सक्रिय challenge नहीं है।</div>'
     return page(body,'settings',True)
 
 init_db()
