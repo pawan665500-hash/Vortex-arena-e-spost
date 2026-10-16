@@ -25,9 +25,8 @@ DISCORD_URL = 'https://discord.gg/pY9dvhaxs'
 YOUTUBE = 'https://youtube.com/@smaltanime_00'
 app = Flask(__name__)
 app.secret_key = os.environ.get('VORTEX_SECRET_KEY', 'change-this-secret-key-before-public-hosting')
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # video evidence uploads up to 50 MB
 app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 30  # 30 days; logout clears it
-app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024
 
 GAMES = [
  ('Free Fire','Battle Royale','₹5','https://images.unsplash.com/photo-1542751371-adc38448a05e?w=700&fit=crop'),
@@ -77,7 +76,8 @@ def init_db():
           "CREATE TABLE IF NOT EXISTS achievements(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,code TEXT NOT NULL,title TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(user_id,code))",
           "CREATE TABLE IF NOT EXISTS admin_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,admin_name TEXT DEFAULT 'Admin',action TEXT NOT NULL,details TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
           "CREATE TABLE IF NOT EXISTS result_awards(id INTEGER PRIMARY KEY AUTOINCREMENT,tournament_id INTEGER NOT NULL,user_id INTEGER NOT NULL,delta INTEGER NOT NULL,reason TEXT NOT NULL,UNIQUE(tournament_id,user_id,reason))",
-          "CREATE TABLE IF NOT EXISTS support_messages(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,sender_role TEXT NOT NULL,sender_id INTEGER,message TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,seen INTEGER DEFAULT 0)"
+          "CREATE TABLE IF NOT EXISTS support_messages(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,sender_role TEXT NOT NULL,sender_id INTEGER,message TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP,seen INTEGER DEFAULT 0)",
+          "CREATE TABLE IF NOT EXISTS challenge_entries(id INTEGER PRIMARY KEY AUTOINCREMENT,challenge_id INTEGER NOT NULL,user_id INTEGER NOT NULL,player_name TEXT NOT NULL,game_uid TEXT NOT NULL,player_card_id TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(challenge_id,user_id))"
         ]: c.execute(sql)
         msg_cols=[r[1] for r in c.execute('PRAGMA table_info(messages)')]
         if 'seen' not in msg_cols: c.execute('ALTER TABLE messages ADD COLUMN seen INTEGER DEFAULT 0')
@@ -566,20 +566,46 @@ def pops_reports():
 def rulebook():
     u=current_user()
     if not u: return redirect(url_for('login'))
-    rules=[('Fair Play','Hack, teleport, auto-aim, scripts या किसी भी exploit का इस्तेमाल प्रतिबंधित है।'),('POPS Reports','रिपोर्ट में अपना UID, संबंधित खिलाड़ी का UID, घटना का विवरण और जहाँ संभव हो वीडियो सबूत दें।'),('Evidence Review','Admin रिपोर्ट, मैच रिकॉर्ड और उपलब्ध सबूत की जाँच करेगा; रिपोर्ट की स्थिति POPS पेज पर दिखेगी।'),('Admin Conflict','यदि रिपोर्ट Admin के विरुद्ध है, तो उसे Host review के लिए भेजा जाना चाहिए; संबंधित Admin अकेले अंतिम निर्णय न करे।'),('False Reports','सिर्फ आरोप साबित न होना झूठी रिपोर्ट का प्रमाण नहीं है; जानबूझकर गलत सबूत या UID misuse पर कार्रवाई हो सकती है।'),('Challenges','केवल Admin द्वारा प्रकाशित सक्रिय challenges आधिकारिक हैं; eligibility, deadline और reward विवरण पढ़ें।'),('Match Results','मैच परिणाम और रैंकिंग Admin द्वारा सत्यापित रिकॉर्ड के आधार पर अपडेट होंगे।'),('Appeal','गलत UID या रिपोर्ट के गलत वर्गीकरण पर सबूत सहित Admin/Host review माँगें।')]
+    rules=[('Rule 1 — Fair Play','Hack, teleport, auto-aim, scripts या किसी भी exploit का इस्तेमाल प्रतिबंधित है।'),('Rule 4 — Account Safety','अपना UID सही रखें और किसी दूसरे खिलाड़ी का UID बनकर दावा न करें।'),('Rule 5 — Match Conduct','मैच में टीम और टूर्नामेंट के नियमों का पालन करें।'),('Rule 6 — Evidence','रिपोर्ट में मूल वीडियो/रिकॉर्डिंग और घटना का समय दें; एडिट किया हुआ क्लिप संदर्भ के साथ दें।'),('Rule 7 — Reports','जानबूझकर गलत रिपोर्ट या नकली सबूत पर कार्रवाई हो सकती है; आरोप साबित न होना अपने-आप झूठी रिपोर्ट नहीं है।'),('Rule 14 — Evidence Verification','Admin उपलब्ध वीडियो, UID और मैच रिकॉर्ड जाँचकर स्थिति अपडेट करेगा।'),('Rule 62 — Admin Conflict','यदि रिपोर्ट Admin के विरुद्ध है, तो उसे Host review के लिए भेजा जाए; संबंधित Admin अकेले अंतिम निर्णय न करे।'),('Rule 76 — Suspected Hacks','संदिग्ध hack को POPS में UID, विवरण और वीडियो के साथ रिपोर्ट करें; खुद से प्रतिशोध न लें।'),('Rule 81 — Community Vote','24 घंटे बाद वोट/समुदाय प्रतिक्रिया ली जा सकती है, लेकिन अंतिम निर्णय सबूत देखकर Admin/Host करेगा।'),('Rule 96 — Privacy','रिपोर्ट में निजी जानकारी, पासवर्ड या भुगतान गोपनीय जानकारी साझा न करें।'),('Rule 123 — Appeal','गलत UID या रिपोर्ट के गलत वर्गीकरण पर सबूत सहित Admin/Host से appeal करें।'),('Rule 126 — Final Review','सभी रिपोर्टों की स्थिति और निर्णय कारण सहित उपलब्ध होने पर अपडेट किया जाएगा।'),('Challenges','केवल Admin द्वारा प्रकाशित सक्रिय challenges आधिकारिक हैं; eligibility और reward विवरण पढ़ें।'),('Match Results','मैच परिणाम और रैंकिंग उपलब्ध सत्यापित रिकॉर्ड के आधार पर अपडेट होंगे।')]
     body='<h1 class="title">Rulebook</h1><p class="muted">Vortex Arena के सभी खिलाड़ियों के लिए नियम</p>'
     for title,desc in rules: body+=f'<div class="card"><h3>{html.escape(title)}</h3><p>{html.escape(desc)}</p></div>'
     body+='<a class="btn full" href="/pops">POPS Report</a><a class="btn secondary full" href="/challenges">Challenges</a>'
     return page(body,'home',True)
 
-@app.route('/challenges')
+@app.route('/challenges', methods=['GET','POST'])
 def user_challenges():
     u=current_user()
     if not u: return redirect(url_for('login'))
-    c=db(); c.execute("CREATE TABLE IF NOT EXISTS arena_challenges(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT DEFAULT '',game TEXT DEFAULT 'All games',starts_at TEXT DEFAULT '',ends_at TEXT DEFAULT '',active INTEGER DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+    c=db()
+    c.execute("CREATE TABLE IF NOT EXISTS arena_challenges(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT DEFAULT '',game TEXT DEFAULT 'All games',starts_at TEXT DEFAULT '',ends_at TEXT DEFAULT '',active INTEGER DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+    c.execute("CREATE TABLE IF NOT EXISTS challenge_entries(id INTEGER PRIMARY KEY AUTOINCREMENT,challenge_id INTEGER NOT NULL,user_id INTEGER NOT NULL,player_name TEXT NOT NULL,game_uid TEXT NOT NULL,player_card_id TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(challenge_id,user_id))")
+    if request.method=='POST':
+        cid=request.form.get('challenge_id',''); pname=request.form.get('player_name','').strip()[:80]; game_uid=request.form.get('game_uid','').strip()[:100]; card_id=request.form.get('player_card_id','').strip()[:100]
+        ch=c.execute('SELECT * FROM arena_challenges WHERE id=? AND active=1',(int(cid),)).fetchone() if cid.isdigit() else None
+        if not ch: flash('यह Challenge अभी उपलब्ध नहीं है।')
+        elif not pname or not game_uid or not card_id: flash('अपना नाम, Game UID और Player Card चुनना जरूरी है।')
+        else:
+            try:
+                c.execute('INSERT INTO challenge_entries(challenge_id,user_id,player_name,game_uid,player_card_id) VALUES(?,?,?,?,?)',(int(cid),u['id'],pname,game_uid,card_id)); c.commit(); flash('आप Challenge में शामिल हो गए। Admin की manual verification की जरूरत नहीं है।')
+            except sqlite3.IntegrityError: flash('आप पहले ही इस Challenge में शामिल हैं।')
+        return redirect(url_for('user_challenges'))
     rows=c.execute('SELECT * FROM arena_challenges WHERE active=1 ORDER BY id DESC').fetchall()
-    body='<h1 class="title">Challenges</h1><p class="muted">यहाँ केवल Admin द्वारा बनाए गए सक्रिय challenges दिखाई देते हैं।</p>'
-    body+=''.join(f'<div class="card"><h3>{html.escape(r["title"])}</h3><p>{html.escape(r["description"] or "")}</p><span class="pill">{html.escape(r["game"] or "All games")}</span></div>' for r in rows) or '<div class="card">अभी कोई सक्रिय challenge नहीं है।</div>'
+    entries=c.execute('SELECT challenge_id,COUNT(*) n FROM challenge_entries GROUP BY challenge_id').fetchall(); counts={int(x['challenge_id']):int(x['n']) for x in entries}
+    # Last seven days of the current user's challenge activity
+    daily=c.execute("SELECT date(created_at) d,COUNT(*) n FROM challenge_entries WHERE user_id=? AND datetime(created_at)>=datetime('now','-6 days') GROUP BY date(created_at) ORDER BY d",(u['id'],)).fetchall(); daymap={x['d']:int(x['n']) for x in daily}
+    from datetime import date,timedelta
+    graph=''.join(f'<div style="flex:1;text-align:center"><div style="height:{max(5,daymap.get((date.today()-timedelta(days=i)).isoformat(),0)*22)}px;background:linear-gradient(#31c8ff,#762bff);border-radius:6px 6px 0 0;margin-top:auto"></div><small>{(date.today()-timedelta(days=i)).strftime("%a")}</small></div>' for i in reversed(range(7)))
+    body='<h1 class="title">Challenges</h1><p class="muted">Admin द्वारा प्रकाशित सक्रिय challenges में शामिल हों। नाम, Game UID और अपना Player Card चुनें; entry सीधे सेव होगी।</p>'
+    body+=f'<div class="card"><h3>आपकी 7-दिन की Challenge Activity</h3><div style="height:95px;display:flex;align-items:end;gap:8px;padding-top:8px">{graph}</div><p class="muted">यह ग्राफ आपके पिछले सात दिनों की challenge entries दिखाता है; मैच स्कोर तभी दिखेगा जब मैच रिज़ल्ट रिकॉर्ड उपलब्ध होगा।</p></div>'
+    for r in rows:
+        joined=c.execute('SELECT id FROM challenge_entries WHERE challenge_id=? AND user_id=?',(r['id'],u['id'])).fetchone()
+        body+=f'<div class="card"><h3>{html.escape(r["title"])}</h3><p>{html.escape(r["description"] or "")}</p><span class="pill">{html.escape(r["game"] or "All games")}</span> <span class="pill">{counts.get(int(r["id"]),0)} joined</span>'
+        if joined: body+='<p class="pill">You joined this challenge</p>'
+        else:
+            body+=f'''<form method="post"><input type="hidden" name="challenge_id" value="{r['id']}"><div class="field"><label>आपका नाम</label><input name="player_name" value="{html.escape(u['username'] or '',quote=True)}" required maxlength="80"></div><div class="field"><label>Game UID</label><input name="game_uid" value="{html.escape(u['game_uid'] or '',quote=True)}" required maxlength="100" placeholder="अपनी Free Fire / game UID"></div><div class="field"><label>Player Card चुनें</label><select name="player_card_id" required><option value="">अपना Player Card चुनें</option><option value="VA-{10000+int(u['id'])}">Vortex Player Card · {html.escape(u['arena_uid'] or ('VA-'+str(10000+int(u['id']))))}</option></select></div><button class="btn full">Join Challenge</button></form>'''
+        body+='</div>'
+    if not rows: body+='<div class="card">अभी कोई active challenge नहीं है। Admin के publish करने पर यहाँ दिखाई देगा।</div>'
+    body+='<a class="btn secondary full" href="/player-card">Open / Edit Player Card</a><a class="btn secondary full" href="/rulebook">Rulebook</a>'
     return page(body,'settings',True)
 
 init_db()
