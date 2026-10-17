@@ -624,7 +624,6 @@ def ensure_shop_schema():
         if c.execute('SELECT COUNT(*) FROM spin_rewards').fetchone()[0]==0:
             c.executemany('INSERT INTO spin_rewards(label,reward_type,amount,weight,active) VALUES(?,?,?,?,1)', [('10 Diamonds','diamonds',10,25),('25 Diamonds','diamonds',25,10),('100 Diamonds','diamonds',100,3),('1,000 Points','points',1000,8),('50 Coins','coins',50,20),('Player Card','item',0,5),('Better luck next time','nothing',0,29)])
         c.commit()
-ensure_shop_schema()
 
 @app.route('/shop', methods=['GET','POST'])
 def shop():
@@ -709,6 +708,7 @@ def shop():
 
 
 init_db()
+ensure_shop_schema()
 
 if __name__=='__main__':
     init_db()

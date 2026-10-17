@@ -378,7 +378,6 @@ def ensure_shop_schema():
         c.execute("CREATE TABLE IF NOT EXISTS equipped_cards(user_id INTEGER PRIMARY KEY,item_id INTEGER NOT NULL)")
         if c.execute('SELECT COUNT(*) FROM spin_rewards').fetchone()[0]==0:
             c.executemany('INSERT INTO spin_rewards(label,reward_type,amount,weight,active) VALUES(?,?,?,?,1)', [('10 Diamonds','diamonds',10,25),('25 Diamonds','diamonds',25,10),('100 Diamonds','diamonds',100,3),('1,000 Points','points',1000,8),('50 Coins','coins',50,20),('Player Card','item',0,5),('Better luck next time','nothing',0,29)])
-ensure_shop_schema()
 
 @app.route('/shop-manager',methods=['GET','POST'])
 def shop_manager():
@@ -417,6 +416,7 @@ def shop_manager():
 
 
 init_db()
+ensure_shop_schema()
 def open_browser():time.sleep(1.2);webbrowser.open('http://127.0.0.1:8083')
 if __name__=='__main__':
     print('\nVORTEX ARENA ADMIN PANEL')
