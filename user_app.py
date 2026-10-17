@@ -129,7 +129,7 @@ def current_user():
 STYLE = r'''
 :root{--bg:#030817;--panel:#08152d;--panel2:#0b1d3b;--line:#2145a1;--blue:#287cff;--purple:#7c20ff;--cyan:#35c7ff;--text:#f2f6ff;--muted:#8fa9d8;--green:#2ce6a6}*{box-sizing:border-box}html,body{max-width:100%;overflow-x:hidden}body{margin:0;background:radial-gradient(ellipse at 50% -10%,#172c70 0,#050b1d 42%,#020611 100%);font-family:Arial,Helvetica,sans-serif;color:var(--text);min-height:100vh}a{color:inherit;text-decoration:none}button,input,select{font:inherit}.wrap{max-width:540px;margin:auto;min-height:100vh;padding-bottom:84px}.top{height:68px;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #1b3d91;background:#040b1b;position:sticky;top:0;z-index:5}.logo{width:44px;height:44px;object-fit:contain}.brand{font-size:17px;font-weight:900;letter-spacing:1.5px}.brand small{display:block;color:#57b8ff;font-size:8px;letter-spacing:4px;text-align:center}.right{margin-left:auto;color:#b9d5ff}.content{padding:15px 14px}.card{background:linear-gradient(145deg,#0c1d3b,#050d20);border:1px solid var(--line);border-radius:14px;padding:13px;margin:10px 0;box-shadow:0 0 18px #09246a25}.muted{color:var(--muted);font-size:12px}.title{font-size:22px;font-weight:900;margin:3px 0}.subtitle{color:#57b8ff;font-size:13px;margin-top:4px}.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid #436fff;border-radius:10px;padding:10px 13px;background:linear-gradient(100deg,#164cff,#831aff);color:white;font-weight:bold;cursor:pointer}.btn.secondary{background:#0c1d3b}.btn.green{background:linear-gradient(100deg,#008cbb,#00b88a);border-color:#12c7e5}.btn.youtube{background:#ff0033;border:1px solid #ff526f;box-shadow:0 0 18px #ff003344;transition:transform .18s ease,box-shadow .18s ease}.btn.youtube:hover{transform:translateY(-2px);box-shadow:0 0 24px #ff003377}.card,.btn,.pill,.game{transition:transform .18s ease,box-shadow .18s ease}.card:hover{box-shadow:0 0 22px #254fff30}.btn.full{width:100%;margin-top:9px}.field{margin:12px 0}.field label{display:block;font-size:12px;color:#a9c5ff;margin-bottom:6px}.field input,.field select{width:100%;background:#030a19;color:white;border:1px solid #2b4b98;border-radius:9px;padding:12px;outline:none}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.game{overflow:hidden;padding:0}.game img,.tourimg{width:100%;height:100px;object-fit:cover;display:block;background:#101e3d}.game img{transition:transform .25s ease}.game:hover img{transform:scale(1.035)}.game .pad{padding:10px}.game h3{font-size:14px;margin:0 0 5px}.row{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}.avatar{width:76px;height:76px;border-radius:50%;border:2px solid #4c7dff;object-fit:cover;background:#101e3d}.avatar-pick{position:relative;width:96px;height:96px;flex:0 0 96px}.avatar-pick .avatar{width:96px;height:96px;display:block}.avatar-pick button{position:absolute;right:0;bottom:0;width:34px;height:34px;border-radius:50%;border:2px solid #07142b;background:linear-gradient(135deg,#267cff,#8b22ff);color:white;font-size:18px;cursor:pointer;box-shadow:0 0 12px #713bff88}.avatar-hint{font-size:11px;color:#8fa9d8;margin-top:5px}.stat{flex:1;text-align:center;border-right:1px solid #254075}.stat:last-child{border:0}.stat b{display:block;font-size:18px}.hero{background:linear-gradient(100deg,#111e59,#4014a2 60%,#07162e);border:1px solid #5948ff;border-radius:14px;padding:17px;min-height:130px}.hero h2{margin:0 0 7px}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.quick a{border:1px solid #23479a;background:#081631;border-radius:10px;text-align:center;padding:12px 3px;font-size:11px}.quick strong{display:block;color:#8c79ff;font-size:21px;margin-bottom:6px}.tour{display:grid;grid-template-columns:94px 1fr;gap:10px;align-items:center}.tour img{width:94px;height:92px;border-radius:10px;object-fit:cover}.tour h3{margin:0 0 5px;font-size:14px}.banner-slider{display:flex;gap:10px;overflow-x:auto;max-width:100%;scroll-snap-type:x mandatory;padding-bottom:8px}.banner-slide{min-width:0;overflow:hidden}.banner-slide img{width:100%;max-width:100%;height:140px;object-fit:cover;display:block;border-radius:10px}.hero-banner{display:block;width:100%;max-width:100%;height:160px;object-fit:cover;border-radius:10px;margin:10px 0}.featured-hero{overflow:hidden;position:relative}.live-badge{display:inline-block;background:#ed1737;color:#fff;font-weight:900;letter-spacing:1px;border-radius:5px;padding:5px 10px;font-size:12px;box-shadow:0 0 12px #ed173755;margin-bottom:8px}.tour-image-wrap{position:relative;min-width:0}.tour-image-wrap img{width:100%;height:92px;object-fit:cover;border-radius:10px}.tour-image-wrap .live-badge{position:absolute;z-index:1;top:6px;left:6px;margin:0}.game-image-wrap{height:100px;overflow:hidden}.game-image-wrap img{width:100%;height:100%;object-fit:cover}.game-placeholder{height:100%;display:flex;align-items:center;justify-content:center;background:#101e3d;color:#b9d5ff;font-weight:bold}.player-card{border:1px solid #6547ff;border-radius:18px;overflow:hidden;background:linear-gradient(135deg,#07142c,#1c1450 55%,#07142c);box-shadow:0 0 28px #4228c455}.player-card-head{padding:16px;background:linear-gradient(90deg,#0c2d70,#5b18c7);display:flex;justify-content:space-between;gap:8px;align-items:center}.player-card-brand{font-weight:900;letter-spacing:2px}.player-card-tag{font-size:10px;letter-spacing:1px}.player-card-main{display:flex;gap:15px;align-items:center;padding:18px}.player-card-avatar{width:90px;height:90px;border-radius:50%;object-fit:cover;border:3px solid #7d6aff}.player-card-rank{display:inline-block;margin-top:8px;padding:5px 10px;border-radius:20px;background:#211b57;border:1px solid #8b70ff;color:#fff}.player-card-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #34316f;border-bottom:1px solid #34316f;padding:12px 5px}.player-card-stats div{text-align:center;border-right:1px solid #34316f}.player-card-stats div:last-child{border:0}.player-card-stats b,.player-card-stats span{display:block}.player-card-stats span{font-size:10px;color:#9eb5e5;margin-top:4px}.player-card-footer{padding:12px;text-align:center;color:#a9c5ff;font-size:12px}.banner-slide{flex:0 0 86%;scroll-snap-align:center}.fee{color:#ffd65b;font-weight:bold}.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(540px,100%);display:grid;grid-template-columns:repeat(6,1fr);background:#030a19;border-top:1px solid #2549a8;padding:7px 3px calc(7px + env(safe-area-inset-bottom));z-index:9}.nav a{text-align:center;color:#9eb5e5;font-size:10px;padding:4px 0}.nav a.active{color:#ad79ff;text-shadow:0 0 12px #7b20ff}.nav b{display:block;font-size:18px;margin-bottom:4px}.flash{padding:10px;border-radius:9px;background:#11264b;border:1px solid #365ab3;margin-bottom:10px;font-size:13px}.search{display:flex;gap:8px}.search input{flex:1;min-width:0}.pill{border:1px solid #244a99;padding:7px 11px;border-radius:20px;color:#c7d8ff;font-size:12px}.live{color:#ff5d7a;font-weight:bold}.hidden{display:none}@media(min-width:700px){.wrap{margin:20px auto;border:1px solid #1c3d8b;border-radius:18px;overflow:hidden;min-height:90vh}.top{position:relative}}
 '''
-BASE_HTML = r'''<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vortex Arena</title><style>''' + STYLE + r'''</style></head><body><div class="wrap"><header class="top"><img class="logo" src="https://dummyimage.com/100x100/091b46/7c7cff.png&text=V" alt="Vortex logo"><div class="brand">VORTEX ARENA<small>ESPORTS</small></div><div class="right"><a href="/notifications">Updates</a> · <a href="/social">Players</a> · <a href="/support-chat">Admin Chat</a> · <a href="/profile">Profile</a></div></header><main class="content">{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="flash">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}</main>{% if user %}<nav class="nav"><a class="{{'active' if page=='home' else ''}}" href="/"><b>⌂</b>Home</a><a class="{{'active' if page=='games' else ''}}" href="/games"><b>▦</b>Games</a><a class="{{'active' if page=='tournaments' else ''}}" href="/tournaments"><b>♜</b>Match</a><a class="{{'active' if page=='live' else ''}}" href="/live"><b>◉</b>Live</a><a class="{{'active' if page=='leaderboard' else ''}}" href="/leaderboard"><b>▥</b>Result</a><a class="{{'active' if page=='settings' else ''}}" href="/settings"><b>⚙</b>Setting</a></nav>{% endif %}</div></body></html>'''
+BASE_HTML = r'''<!doctype html><html lang="hi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vortex Arena</title><style>''' + STYLE + r'''</style></head><body><div class="wrap"><header class="top"><img class="logo" src="https://dummyimage.com/100x100/091b46/7c7cff.png&text=V" alt="Vortex logo"><div class="brand">VORTEX ARENA<small>ESPORTS</small></div><div class="right"><a href="/notifications">Updates</a> · <a href="/shop">Shop</a> · <a href="/social">Players</a> · <a href="/support-chat">Admin Chat</a> · <a href="/profile">Profile</a></div></header><main class="content">{% with messages=get_flashed_messages() %}{% for m in messages %}<div class="flash">{{m}}</div>{% endfor %}{% endwith %}{{body|safe}}</main>{% if user %}<nav class="nav"><a class="{{'active' if page=='home' else ''}}" href="/"><b>⌂</b>Home</a><a class="{{'active' if page=='games' else ''}}" href="/games"><b>▦</b>Games</a><a class="{{'active' if page=='tournaments' else ''}}" href="/tournaments"><b>♜</b>Match</a><a class="{{'active' if page=='live' else ''}}" href="/live"><b>◉</b>Live</a><a class="{{'active' if page=='leaderboard' else ''}}" href="/leaderboard"><b>▥</b>Result</a><a class="{{'active' if page=='settings' else ''}}" href="/settings"><b>⚙</b>Setting</a></nav>{% endif %}</div></body></html>'''
 def page(body, page='home', needs_profile=False):
     user=current_user()
     if user and needs_profile and (not user['username'] or not user['game_uid']): return redirect(url_for('profile'))
@@ -607,6 +607,106 @@ def user_challenges():
     if not rows: body+='<div class="card">अभी कोई active challenge नहीं है। Admin के publish करने पर यहाँ दिखाई देगा।</div>'
     body+='<a class="btn secondary full" href="/player-card">Open / Edit Player Card</a><a class="btn secondary full" href="/rulebook">Rulebook</a>'
     return page(body,'settings',True)
+
+
+# Additive Shop / currency / equipped-card system (keeps all existing data).
+def ensure_shop_schema():
+    with sqlite3.connect(DB) as c:
+        cols=[r[1] for r in c.execute('PRAGMA table_info(users)')]
+        for col,definition in [('coins','INTEGER DEFAULT 0'),('diamonds','INTEGER DEFAULT 0'),('equipped_card_id','INTEGER')]:
+            if col not in cols: c.execute(f'ALTER TABLE users ADD COLUMN {col} {definition}')
+        c.execute("CREATE TABLE IF NOT EXISTS shop_items(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,item_type TEXT DEFAULT 'Cosmetic',description TEXT DEFAULT '',image_url TEXT DEFAULT '',price INTEGER DEFAULT 0,currency TEXT DEFAULT 'Points',duration_days INTEGER DEFAULT 0,stock INTEGER DEFAULT -1,active INTEGER DEFAULT 1,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS shop_inventory(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,item_id INTEGER NOT NULL,quantity INTEGER DEFAULT 1,expires_at TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP,UNIQUE(user_id,item_id))")
+        c.execute("CREATE TABLE IF NOT EXISTS shop_ledger(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,currency TEXT NOT NULL,delta INTEGER NOT NULL,reason TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS spin_history(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER NOT NULL,cost INTEGER DEFAULT 500,reward_type TEXT NOT NULL,reward_amount INTEGER DEFAULT 0,reward_label TEXT NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        c.execute("CREATE TABLE IF NOT EXISTS spin_rewards(id INTEGER PRIMARY KEY AUTOINCREMENT,label TEXT NOT NULL,reward_type TEXT NOT NULL,amount INTEGER DEFAULT 0,weight INTEGER DEFAULT 1,active INTEGER DEFAULT 1)")
+        c.execute("CREATE TABLE IF NOT EXISTS equipped_cards(user_id INTEGER PRIMARY KEY,item_id INTEGER NOT NULL)")
+        if c.execute('SELECT COUNT(*) FROM spin_rewards').fetchone()[0]==0:
+            c.executemany('INSERT INTO spin_rewards(label,reward_type,amount,weight,active) VALUES(?,?,?,?,1)', [('10 Diamonds','diamonds',10,25),('25 Diamonds','diamonds',25,10),('100 Diamonds','diamonds',100,3),('1,000 Points','points',1000,8),('50 Coins','coins',50,20),('Player Card','item',0,5),('Better luck next time','nothing',0,29)])
+        c.commit()
+ensure_shop_schema()
+
+@app.route('/shop', methods=['GET','POST'])
+def shop():
+    u=current_user()
+    if not u: return redirect(url_for('login'))
+    c=db()
+    if request.method=='POST':
+        action=request.form.get('action','buy')
+        if action=='spin':
+            u=c.execute('SELECT * FROM users WHERE id=?',(u['id'],)).fetchone()
+            if int(u['coins'] or 0)<500: flash('एक Spin के लिए 500 Coins चाहिए।')
+            else:
+                rewards=c.execute('SELECT * FROM spin_rewards WHERE active=1 AND weight>0').fetchall()
+                import random
+                total=sum(int(x['weight']) for x in rewards)
+                pick=random.randint(1,max(1,total)); chosen=rewards[-1]
+                for reward in rewards:
+                    pick-=int(reward['weight'])
+                    if pick<=0: chosen=reward; break
+                c.execute('UPDATE users SET coins=coins-500 WHERE id=? AND coins>=500',(u['id'],))
+                if c.execute('SELECT changes()').fetchone()[0]:
+                    typ=chosen['reward_type']; amount=int(chosen['amount'] or 0); label=chosen['label']
+                    if typ=='points': c.execute('UPDATE users SET rank_points=rank_points+? WHERE id=?',(amount,u['id']))
+                    elif typ=='coins': c.execute('UPDATE users SET coins=coins+? WHERE id=?',(amount,u['id']))
+                    elif typ=='diamonds': c.execute('UPDATE users SET diamonds=diamonds+? WHERE id=?',(amount,u['id']))
+                    elif typ=='item':
+                        item=c.execute("SELECT id FROM shop_items WHERE active=1 AND item_type='Player Card' ORDER BY RANDOM() LIMIT 1").fetchone()
+                        if item:
+                            c.execute('INSERT OR IGNORE INTO shop_inventory(user_id,item_id) VALUES(?,?)',(u['id'],item['id']))
+                            label='Player Card unlocked'
+                        else: typ='coins'; amount=100; label='100 Coins (card stock unavailable)'; c.execute('UPDATE users SET coins=coins+100 WHERE id=?',(u['id'],))
+                    c.execute('INSERT INTO shop_ledger(user_id,currency,delta,reason) VALUES(?,?,?,?)',(u['id'],'Coins',-500,'Lucky Spin'))
+                    c.execute('INSERT INTO spin_history(user_id,cost,reward_type,reward_amount,reward_label) VALUES(?,?,?,?,?)',(u['id'],500,typ,amount,label))
+                    c.commit(); flash('Lucky Spin result: '+label)
+        elif action=='buy':
+            try:
+                item_id=int(request.form.get('item_id','0')); item=c.execute('SELECT * FROM shop_items WHERE id=? AND active=1',(item_id,)).fetchone()
+                if not item: raise ValueError('यह आइटम उपलब्ध नहीं है।')
+                if item['stock']==0: raise ValueError('यह आइटम Sold Out है।')
+                owned=c.execute('SELECT id FROM shop_inventory WHERE user_id=? AND item_id=?',(u['id'],item_id)).fetchone()
+                if owned: raise ValueError('यह आइटम पहले से Inventory में है।')
+                currency=item['currency']; price=int(item['price']); col={'Points':'rank_points','Coins':'coins','Diamonds':'diamonds'}.get(currency)
+                if not col: raise ValueError('इस आइटम की Currency सेटिंग गलत है।')
+                fresh=c.execute(f'SELECT {col} FROM users WHERE id=?',(u['id'],)).fetchone()
+                if int(fresh[col] or 0)<price: raise ValueError('आपके पास पर्याप्त '+currency+' नहीं हैं।')
+                c.execute(f'UPDATE users SET {col}={col}-? WHERE id=? AND {col}>=?',(price,u['id'],price))
+                if c.execute('SELECT changes()').fetchone()[0]!=1: raise ValueError('Balance अपडेट नहीं हुआ।')
+                expires=''
+                if int(item['duration_days'] or 0)>0: expires=(datetime.now()+timedelta(days=int(item['duration_days']))).isoformat(timespec='seconds')
+                c.execute('INSERT INTO shop_inventory(user_id,item_id,expires_at) VALUES(?,?,?)',(u['id'],item_id,expires))
+                if int(item['stock'])>0: c.execute('UPDATE shop_items SET stock=stock-1 WHERE id=?',(item_id,))
+                c.execute('INSERT INTO shop_ledger(user_id,currency,delta,reason) VALUES(?,?,?,?)',(u['id'],currency,-price,'Shop purchase: '+item['name']))
+                c.commit(); flash('आइटम खरीदा गया। Inventory में जाकर equip करें।')
+            except (ValueError,sqlite3.Error) as e: c.rollback(); flash(str(e))
+        elif action=='equip':
+            try:
+                item_id=int(request.form.get('item_id','0'))
+                owned=c.execute('SELECT i.id FROM shop_inventory i JOIN shop_items s ON s.id=i.item_id WHERE i.user_id=? AND i.item_id=? AND (i.expires_at="" OR i.expires_at>?) AND s.item_type="Player Card"',(u['id'],item_id,datetime.now().isoformat(timespec='seconds'))).fetchone()
+                if not owned: raise ValueError('पहले Player Card खरीदें और valid Inventory item चुनें।')
+                c.execute('INSERT INTO equipped_cards(user_id,item_id) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET item_id=excluded.item_id',(u['id'],item_id)); c.execute('UPDATE users SET equipped_card_id=? WHERE id=?',(item_id,u['id'])); c.commit(); flash('Player Card प्रोफाइल पर लगा दिया गया।')
+            except (ValueError,sqlite3.Error) as e: c.rollback(); flash(str(e))
+        return redirect(url_for('shop'))
+    u=c.execute('SELECT * FROM users WHERE id=?',(u['id'],)).fetchone()
+    items=c.execute('SELECT * FROM shop_items WHERE active=1 ORDER BY id DESC').fetchall()
+    banners=c.execute('SELECT * FROM banners WHERE active=1 ORDER BY id DESC LIMIT 5').fetchall()
+    inv=c.execute('SELECT i.*,s.name,s.item_type,s.image_url FROM shop_inventory i JOIN shop_items s ON s.id=i.item_id WHERE i.user_id=? ORDER BY i.id DESC',(u['id'],)).fetchall()
+    spins=c.execute('SELECT * FROM spin_rewards WHERE active=1 ORDER BY id').fetchall()
+    body='<h1 class="title">Vortex Shop</h1><p class="muted">Points, Coins और Diamonds अलग-अलग balances हैं।</p><div class="grid"><div class="card">Points <h2>'+str(u['rank_points'] or 0)+'</h2></div><div class="card">Coins <h2>'+str(u['coins'] or 0)+'</h2></div><div class="card">Diamonds <h2>'+str(u['diamonds'] or 0)+'</h2></div></div>'
+    if banners:
+        body+='<div class="banner-slider">'+''.join('<a class="banner-slide" href="'+html.escape(x['link_url'] or '/shop',quote=True)+'"><img src="'+html.escape(x['image_url'],quote=True)+'" alt="'+html.escape(x['title'],quote=True)+'"><b>'+html.escape(x['title'])+'</b></a>' for x in banners)+'</div>'
+    body+='<div class="card"><h2>Lucky Spin / Lucky Royale</h2><p>एक Spin = 500 Coins. संभावित इनाम और probability-weighted rewards:</p><ul>'+''.join('<li>'+html.escape(x['label'])+' — '+str(round(100*int(x['weight'])/max(1,sum(int(y['weight']) for y in spins)),1))+'%</li>' for x in spins)+'</ul><form method="post"><input type="hidden" name="action" value="spin"><button class="btn full">Spin for 500 Coins</button></form></div><h2>Shop Items</h2>'
+    for x in items:
+        img='<img src="'+html.escape(x['image_url'],quote=True)+'" style="width:100%;height:120px;object-fit:cover;border-radius:9px" alt="item">' if x['image_url'] else ''
+        body+='<div class="card">'+img+'<h3>'+html.escape(x['name'])+'</h3><p>'+html.escape(x['description'] or '')+'</p><span class="pill">'+html.escape(x['item_type'])+'</span> <span class="pill">'+str(x['price'])+' '+html.escape(x['currency'])+'</span><p class="muted">'+('Permanent' if not x['duration_days'] else str(x['duration_days'])+' days')+' · '+('Unlimited stock' if x['stock']<0 else str(x['stock'])+' left')+'</p><form method="post"><input type="hidden" name="action" value="buy"><input type="hidden" name="item_id" value="'+str(x['id'])+'"><button class="btn full" '+('disabled' if x['stock']==0 else '')+'>Buy</button></form></div>'
+    body+='<h2>My Inventory</h2>'
+    for x in inv:
+        body+='<div class="card">'+html.escape(x['name'])+' <span class="pill">'+html.escape(x['item_type'])+'</span>'+(('<p class="muted">Expires: '+html.escape(x['expires_at'])+'</p>') if x['expires_at'] else '<p class="muted">Permanent</p>')
+        if x['item_type']=='Player Card': body+='<form method="post"><input type="hidden" name="action" value="equip"><input type="hidden" name="item_id" value="'+str(x['item_id'])+'"><button class="btn">Equip on Profile</button></form>'
+        body+='</div>'
+    body+='<a class="btn secondary full" href="/player-card">Open Player Card</a>'
+    return page(body,'settings',True)
+
 
 init_db()
 
