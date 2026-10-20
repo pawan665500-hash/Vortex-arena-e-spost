@@ -1,7 +1,7 @@
 # Vortex Arena - User App (Python + Flask + SQLite)
 # Run: python Vortex_Arena_User_App.py
 # First run installs Flask if missing. Opens your browser automatically.
-import os, sys, sqlite3, subprocess, webbrowser, threading, time, base64, re, html
+import secrets, os, sys, sqlite3, subprocess, webbrowser, threading, time, base64, re, html
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import quote
@@ -92,6 +92,7 @@ def init_db():
         demo_titles=('Free Fire Squad Battle','BGMI Classic Tournament','Roblox Build & Fight','Minecraft Survival Cup','COD Mobile Battle','Valorant Squad Cup','eFootball Showdown')
         c.executemany("DELETE FROM tournaments WHERE title=? AND COALESCE(room_id,'')='' AND COALESCE(room_password,'')='' AND status='Upcoming' AND NOT EXISTS (SELECT 1 FROM registrations r WHERE r.tournament_id=tournaments.id)", [(x,) for x in demo_titles])
 
+    c.execute("CREATE TABLE IF NOT EXISTS site_visits(id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, visitor_key TEXT NOT NULL, visited_at TEXT DEFAULT CURRENT_TIMESTAMP)")
 def rank_for_points(points):
     points=max(0,int(points or 0))
     if points>=3000:return 'Master Right'
@@ -137,6 +138,27 @@ def page(body, page='home', needs_profile=False):
     user=current_user()
     if user and needs_profile and (not user['username'] or not user['game_uid']): return redirect(url_for('profile'))
     return render_template_string(BASE_HTML,body=body,user=user,page=page)
+
+@app.before_request
+def record_site_visit():
+    try:
+        if request.path.startswith('/static') or request.path.startswith('/uploads') or request.path in ('/favicon.ico',):
+            return
+        # Stable anonymous key for this browser; no signup is required.
+        key=request.cookies.get('vortex_visit_id') or secrets.token_urlsafe(12)
+        conn=sqlite3.connect(DB, timeout=5)
+        conn.execute("CREATE TABLE IF NOT EXISTS site_visits(id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, visitor_key TEXT NOT NULL, visited_at TEXT DEFAULT CURRENT_TIMESTAMP)")
+        conn.execute('INSERT INTO site_visits(path,visitor_key) VALUES(?,?)',(request.path[:250],key))
+        conn.commit(); conn.close()
+        g.vortex_visit_key=key
+    except Exception:
+        pass
+
+@app.after_request
+def set_visit_cookie(response):
+    key=getattr(g,'vortex_visit_key',None)
+    if key: response.set_cookie('vortex_visit_id',key,max_age=31536000,httponly=True,samesite='Lax')
+    return response
 
 @app.route('/')
 def home():
